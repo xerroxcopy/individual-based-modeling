@@ -1,0 +1,129 @@
+---
+title: "R population_sizeotebook"
+output: html_notebook
+---
+
+
+# liberaries
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(tictoc)
+```
+
+
+# Unbiased transmission
+ 
+ 
+ unbiased (copied entirely at random) oblique (members of one generation learn from those of the previous, non-overlapping, generation) transmission... horizontal transmission (individuals copy members of the same generation) vertical transmission (offspring copy their biological parents)
+ 
+ 
+```{r}
+model_unbiased_transmission <- function(population_size, timesteps) {
+  output <- tibble(timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+  population <- sample(c("A", "B"), population_size, replace = TRUE)
+
+  output$proportion_of_trait_a[1] <- sum(population == "A") / population_size
+
+  for (timestep in 2:timesteps) {
+    previous_population <- population
+    population <- sample(previous_population, population_size, replace = TRUE)
+    output$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+  }
+  output
+}
+data_unbiased_transmission <- model_unbiased_transmission(population_size = 100, timesteps = 20)
+plot_single_run <- function(data) {
+  ggplot(data = data, aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line() +
+    ylim(c(0, 1))
+}
+data_unbiased_transmission %>%
+  plot_single_run()
+```
+
+multiple runs
+
+```{r}
+population <- sample(c("A", "B"), 1000, replace = TRUE)
+
+# model_unbiased_transmissions does the same thing as unbiased_transmission_2(), but runs ~x8 times faster, and, imo, more human-readable.
+model_unbiased_transmissions <- function(population_size, timesteps, runs) {
+  output <- tibble(run = numeric(), timestep = numeric(), proportion_of_trait_a = numeric())
+  for (run in 1:runs) {
+    # initialize output dataframe
+    output_single_run <- tibble(run = rep(run, timesteps), timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+    # initialize population
+    population <- sample(c("A", "B"), population_size, replace = TRUE)
+    # initialize first generation's p
+    proportion_of_trait_a <- sum(population == "A") / population_size
+    output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
+    for (timestep in 2:timesteps) {
+      paste("timestep", timestep)
+      previous_population <- population
+      population <- sample(previous_population, population_size, replace = TRUE)
+      output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+    }
+    output <- bind_rows(output, output_single_run)
+  }
+  output
+}
+tic()
+data_unbiased_transmissions <- model_unbiased_transmissions(100, 100, 10)
+toc()
+```
+plot 
+
+```{r}
+model_unbiased_transmissions(100, 100, 10) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(colour = as.factor(run))) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1))
+```
+田村(2020: 59)の図2.14に対応する。
+
+```{r}
+model_unbiased_transmissions(100, 100, 100) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(group = as.factor(run)), size = 0.1) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1)) +
+  theme(legend.position = "none")
+```
+random fluctuations of the proportion of trait A under unbiased cultural transmission, due to the stochastic nature of the simulation.
+
+## Varying initial conditions
+
+```{r}
+model_unbiased_transmissions_varying_initial_condition <- function(population_size, initial_probability_of_trait_a, timesteps, runs) {
+  output <- tibble(run = numeric(), timestep = numeric(), proportion_of_trait_a = numeric())
+  for (run in 1:runs) {
+    # initialize output dataframe
+    output_single_run <- tibble(run = rep(run, timesteps),timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+    # initialize population
+    population <- sample(c("A", "B"), population_size, replace = TRUE, prob = c(initial_probability_of_trait_a, 1 - initial_probability_of_trait_a))
+    # initialize first generation's p
+    proportion_of_trait_a <- sum(population == "A") / population_size
+    output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
+    for (timestep in 2:timesteps) {
+      paste('timestep', timestep)
+      previous_population <- population
+      population <- sample(previous_population, population_size, replace = TRUE)
+      output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+    }
+  output <- bind_rows(output, output_single_run)
+  }
+  output
+}
+
+  model_unbiased_transmissions_varying_initial_condition(10000, 0.2, 200, 5) %>% 
+    ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line(aes(colour = as.factor(run))) +
+    stat_summary(fun = mean, geom = "line", size = 1) +
+    ylim(c(0, 1))
+```
+
+ 
+ 

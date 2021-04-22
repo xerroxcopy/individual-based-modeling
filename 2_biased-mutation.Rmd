@@ -1,0 +1,99 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# unbiased and biased mutation
+
+
+functionで包みつつ書くのはあんまり良くない気がする。まずは適当な値をいれて、それから包んだほうがよさそう。
+```{r}
+
+model_unbiased_mutation <- function(population_size, mutation_rate, initial_probability_of_trait_a, timesteps, runs) {
+  output <- tibble(run = numeric(), timestep = numeric(), proportion_of_trait_a = numeric())
+
+  for (run in 1:runs) {
+
+    output_single_run <- tibble(run = rep(run, timesteps),timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+    # initialize population
+    population <- sample(c("A", "B"), population_size, replace = TRUE, prob = c(initial_probability_of_trait_a, 1 - initial_probability_of_trait_a))
+    # initialize first generation's p
+    proportion_of_trait_a <- sum(population == "A") / population_size
+    output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
+    for (timestep in 2:timesteps) {
+      previous_population <- population
+       should_mutate <- sample(c(TRUE, FALSE), population_size, prob = c(mutation_rate, 1 - mutation_rate), replace = TRUE)
+       population <- if_else(should_mutate, if_else(population == "A", "B", "A"), if_else(population == "A", "A", "B"))
+
+      output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+    }
+  output <- bind_rows(output, output_single_run)
+  }
+  output
+}
+```
+```{r}
+
+model_unbiased_mutation(100, .05, .5, 200, 5) %>% 
+   ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line(aes(colour = as.factor(run))) +
+    stat_summary(fun = mean, geom = "line", size = 1) +
+    ylim(c(0, 1))
+```
+
+```{r}
+
+model_unbiased_mutation(100, .05, .1, 200, 5) %>% 
+   ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line(aes(colour = as.factor(run))) +
+    stat_summary(fun = mean, geom = "line", size = 1) +
+    ylim(c(0, 1))
+```
+
+
+## biased mutation
+
+```{r}
+model_biased_mutation <- function(population_size, mutation_rate_biased, initial_probability_of_trait_a, timesteps, runs) {
+  output <- tibble(run = numeric(), timestep = numeric(), proportion_of_trait_a = numeric())
+
+  for (run in 1:runs) {
+
+    output_single_run <- tibble(run = rep(run, timesteps),timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+    # initialize population
+    population <- sample(c("A", "B"), population_size, replace = TRUE, prob = c(initial_probability_of_trait_a, 1 - initial_probability_of_trait_a))
+    # initialize first generation's p
+    proportion_of_trait_a <- sum(population == "A") / population_size
+    output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
+    for (timestep in 2:timesteps) {
+      previous_population <- population
+       should_mutate <- sample(c(TRUE, FALSE), population_size, prob = c(mutation_rate_biased, 1 - mutation_rate_biased), replace = TRUE)
+       population <- if_else(should_mutate, "A", if_else(population == "A", "A", "B"))
+
+      output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+    }
+  output <- bind_rows(output, output_single_run)
+  }
+  output
+}
+```
+
+plot
+
+```{r}
+model_biased_mutation(100, .05, .1, 200, 5) %>% 
+   ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line(aes(colour = as.factor(run))) +
+    stat_summary(fun = mean, geom = "line", size = 1) +
+    ylim(c(0, 1))
+```
+
+
+```{r}
+model_biased_mutation(10000, .05, .1, 200, 5) %>% 
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+    geom_line(aes(colour = as.factor(run))) +
+    stat_summary(fun = mean, geom = "line", size = 1) +
+    ylim(c(0, 1))
+```
+

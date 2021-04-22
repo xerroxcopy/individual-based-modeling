@@ -60,7 +60,6 @@ model_unbiased_transmissions <- function(population_size, timesteps, runs) {
     proportion_of_trait_a <- sum(population == "A") / population_size
     output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
     for (timestep in 2:timesteps) {
-      paste("timestep", timestep)
       previous_population <- population
       population <- sample(previous_population, population_size, replace = TRUE)
       output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
@@ -108,8 +107,8 @@ model_unbiased_transmissions_varying_initial_condition <- function(population_si
     proportion_of_trait_a <- sum(population == "A") / population_size
     output_single_run$proportion_of_trait_a[1] <- proportion_of_trait_a
     for (timestep in 2:timesteps) {
-      paste('timestep', timestep)
       previous_population <- population
+      muat
       population <- sample(previous_population, population_size, replace = TRUE)
       output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
     }
@@ -125,5 +124,5 @@ model_unbiased_transmissions_varying_initial_condition <- function(population_si
     ylim(c(0, 1))
 ```
 
- 
+
  

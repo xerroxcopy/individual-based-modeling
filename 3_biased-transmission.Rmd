@@ -1,0 +1,120 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+occurs swhen one trait is more likely to be copied than another trait
+
+direct / content bias
+
+
+```{r}
+model_biased_transmission_direct <- function(population_size, bias_power_a, bias_power_b, initial_probability_of_trait_a, timesteps, runs) {
+  output <- tibble(run = numeric(), timestep = numeric(), proportion_of_trait_a = numeric())
+  #
+  # population_size <- 100
+  # bias_power_a <- 0.3
+  # bias_power_b <- 0.1
+  # initial_probability_of_trait_a <- 0.3
+  # timestep <- 2
+  # timesteps <- 100
+  # run <- 1
+  for (run in 1:runs) {
+    output_single_run <- tibble(run = rep(run, timesteps), timestep = 1:timesteps, proportion_of_trait_a = rep(NA, timesteps))
+    # initialize population
+    population <- sample(c("A", "B"), population_size, replace = TRUE, prob = c(initial_probability_of_trait_a, 1 - initial_probability_of_trait_a))
+    # initialize first generation's p
+    output_single_run$proportion_of_trait_a[1] <- sum(population == "A") / population_size
+
+    for (timestep in 2:timesteps) {
+      previous_population <- population
+
+      # 今timestepの集団に属する個人は、それぞれデモンストレーターを前世代から適当一人指名する
+      demonstrator_trait <- sample(previous_population, population_size, replace = TRUE)
+      # 今までのunbiased transmissionでは、このデモンストレーターのもつ形質をそのままコピーしていた。
+      # すなわち、demonstrator_traitがそのまま次世代populationになっていた。しかし、
+      # unbiased transmissionと違い、今回の次世代の新人たちは無批判にデモンストレーターのやることをコピーしない。
+      # 形質Aをもつデモンストレーターを指名していたとしても、形質Aを吟味してから、その良さ(bias_power_aの大きさ、最大１)に応じてコピーする
+      # Biased probabilities to copy:
+      should_copy_a <- sample(
+        c(TRUE, FALSE),
+        population_size,
+        prob = c(bias_power_a, 1 - bias_power_a),
+        replace = TRUE
+      )
+      should_copy_b <- sample(
+        c(TRUE, FALSE),
+        population_size,
+        prob = c(bias_power_b, 1 - bias_power_b),
+        replace = TRUE
+      )
+      # もっといい方法ありそうな気もするけどたしかにこれが一番はやいのかなぁ
+
+      population <- case_when(
+        demonstrator_trait == "A" & should_copy_a ~ "A",
+        # オリジナルではshould_copy_aが先に来ているが、demonstrator_traitが先にくるべきと思う。それを「まじでコピーすんの？」と吟味しているので
+        demonstrator_trait == "B" & should_copy_b ~ "B",
+        TRUE ~ previous_population
+      )
+      #   if (length(population[should_copy_a & demonstrator_trait == "A" ]) > 0) {
+      #   population[should_copy_a & demonstrator_trait == "A" ] <- "A"
+      # }
+      # if (length(population[should_copy_b & demonstrator_trait == "B" ]) > 0) {
+      #   population[should_copy_b & demonstrator_trait == "B" ] <- "B"
+      # }
+      output_single_run$proportion_of_trait_a[timestep] <- sum(population == "A") / population_size
+    }
+    output <- bind_rows(output, output_single_run)
+  }
+  output
+}
+```
+
+# plot
+
+```{r}
+model_biased_transmission_direct(population_size = 1e4, bias_power_a = 1, bias_power_b = 1, initial_probability_of_trait_a = 0.3, timesteps = 150, runs = 5) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(group = as.factor(run)), size = 0.1) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1)) +
+  theme(legend.position = "none")
+```
+
+```{r}
+model_biased_transmission_direct(population_size = 1e4, bias_power_a = 0.1, bias_power_b = 0.1, initial_probability_of_trait_a = 0.3, timesteps = 150, runs = 5) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(group = as.factor(run)), size = 0.1) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1)) +
+  theme(legend.position = "none")
+```
+
+```{r}
+model_biased_transmission_direct(population_size = 10000, bias_power_a = 0.1, bias_power_b = 0, initial_probability_of_trait_a = 0.01, timesteps = 150, runs = 5) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(group = as.factor(run)), size = 0.1) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1)) +
+  theme(legend.position = "none")
+```
+```{r}
+model_biased_transmission_direct(population_size = 10000, bias_power_a = 0.6, bias_power_b = 0.5, initial_probability_of_trait_a = 0.01, timesteps = 150, runs = 5) %>%
+  ggplot(aes(x = timestep, y = proportion_of_trait_a)) +
+  geom_line(aes(group = as.factor(run)), size = 0.1) +
+  stat_summary(fun = mean, geom = "line", size = 1) +
+  ylim(c(0, 1)) +
+  theme(legend.position = "none")
+```
+
+
+いろんなバリエーションでプロットしてみたいね
+
+
+```{r}
+
+model_biased_transmission_direct(population_size = 10000, bias_power_a = 0.6, bias_power_b = 0.5, initial_probability_of_trait_a = 0.01, timesteps = 150, runs = 5)
+
+models_biased_transmission_direct_population_size_vs_bias_power <- expand_grid(population_size = c(10^(2:5)), bias_power_a = 1:10 * .1)
+```
+
